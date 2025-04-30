@@ -1,0 +1,6 @@
+fastapi
+uvicorn
+motor  # Cliente async para MongoDB
+pydantic
+python-dotenv
+paho-mqtt
