@@ -1,3 +1,4 @@
+# app/mqtt/subscriber.py
 import asyncio
 import json
 import os
@@ -5,12 +6,15 @@ import time
 import paho.mqtt.client as mqtt
 from app.core.config import MONGO_URL, DATABASE_NAME, COLLECTION_NAME
 from motor.motor_asyncio import AsyncIOMotorClient
+from app.websockets.manager import manager
 
+# MongoDB setup
 MONGO_CLIENT = AsyncIOMotorClient(MONGO_URL)
 db = MONGO_CLIENT[DATABASE_NAME]
 collection = db[COLLECTION_NAME]
 loop = asyncio.get_event_loop()
 
+# MQTT Configuration
 MQTT_BROKER_HOST = os.getenv("MQTT_BROKER_HOST", "localhost")
 MQTT_BROKER_PORT = int(os.getenv("MQTT_BROKER_PORT", 1883))
 MAX_RETRIES = 5
@@ -20,14 +24,24 @@ def on_connect(client, userdata, flags, reason_code, properties):
     print(f"Connected to MQTT Broker with reason code {reason_code}")
     client.subscribe("sensores/#")
 
-
 def on_message(client, userdata, msg):
-    payload = json.loads(msg.payload.decode())
-    payload["source"] = msg.topic.split('/')[-1]  # entrada o salida
-    asyncio.run_coroutine_threadsafe(save_to_db(payload), loop)
+    try:
+        payload = json.loads(msg.payload.decode())
+        source = msg.topic.split('/')[-1]  # entrada o salida
+        
+        # Save to database
+        asyncio.run_coroutine_threadsafe(save_to_db({**payload, "source": source}), loop)
+        
+        # Forward to WebSocket clients
+        asyncio.run_coroutine_threadsafe(manager.broadcast(source, payload), loop)
+    except Exception as e:
+        print(f"Error processing MQTT message: {e}")
 
 async def save_to_db(data):
-    await collection.insert_one(data)
+    try:
+        await collection.insert_one(data)
+    except Exception as e:
+        print(f"Error saving to database: {e}")
 
 def start_mqtt():
     # Use VERSION2 of the API to fix deprecation warning
@@ -38,13 +52,6 @@ def start_mqtt():
     # Implement retry logic
     connected = False
     retries = 0
-
-    def on_message_inner(client, userdata, msg):
-        payload = json.loads(msg.payload.decode())
-        payload["source"] = msg.topic.split('/')[-1]
-        asyncio.run_coroutine_threadsafe(save_to_db(payload), loop)
-
-    client.on_message = on_message_inner
     
     while not connected and retries < MAX_RETRIES:
         try:
