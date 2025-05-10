@@ -3,9 +3,9 @@ import { StyleSheet, View, Text, SafeAreaView, ScrollView, Dimensions, Touchable
 import { LineChart } from 'react-native-chart-kit';
 import { Picker } from '@react-native-picker/picker';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { WS_URL } from './src/config/config';
 
 // Constantes para la conexión WebSocket
-const WS_URL = 'ws://192.168.1.12:8000/ws';
 const MAX_POINTS = 30; // Aumentado para mostrar más datos históricos
 const CACHE_KEY_PREFIX = 'water_quality_data_';
 const RECONNECT_TIMEOUT = 3000; // 3 segundos para reconectar
@@ -382,10 +382,18 @@ const App = () => {
               Actual: <Text style={styles.valueHighlight}>{getCurrentValue(entradaData)} {paramInfo.units}</Text>
             </Text>
           </View>
-          
+
+          {/* Mostrar la hora actual */}
+          <Text style={styles.currentTimeText}>
+            Hora actual: {new Date().toLocaleTimeString()}
+          </Text>
+
           {entradaData.labels.length > 0 ? (
             <LineChart
-              data={entradaData}
+              data={{
+                ...entradaData,
+                labels: [], // Ocultar labels del eje X
+              }}
               width={screenWidth}
               height={220}
               chartConfig={chartConfig}
@@ -416,7 +424,10 @@ const App = () => {
           
           {salidaData.labels.length > 0 ? (
             <LineChart
-              data={salidaData}
+              data={{
+                ...salidaData,
+                labels: [],
+              }}
               width={screenWidth}
               height={220}
               chartConfig={chartConfig}
@@ -566,6 +577,12 @@ const styles = StyleSheet.create({
     color: 'white',
     fontSize: 16,
     fontWeight: 'bold',
+  },
+  currentTimeText: {
+    fontSize: 14,
+    color: '#555',
+    textAlign: 'center',
+    marginBottom: 10,
   },
 });
 
