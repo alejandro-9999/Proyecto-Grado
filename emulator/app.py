@@ -11,7 +11,7 @@ from datetime import datetime
 # Configuration
 MQTT_BROKER_HOST = os.getenv("MQTT_BROKER_HOST", "127.0.0.1")
 MQTT_BROKER_PORT = int(os.getenv("MQTT_BROKER_PORT", 1883))
-PUBLISH_INTERVAL = float(os.getenv("PUBLISH_INTERVAL", 0.5))  # Default to 1 second for more real-time feel
+PUBLISH_INTERVAL = float(os.getenv("PUBLISH_INTERVAL", 2.5))  # Default to 1 second for more real-time feel
 
 # Initial values - starting with baseline values
 current_values = {
