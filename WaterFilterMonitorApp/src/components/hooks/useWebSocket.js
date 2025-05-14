@@ -160,7 +160,7 @@ const useWebSocket = (selectedParameter) => {
       };
       
       ws.onerror = (e) => {
-        console.error('Error en WebSocket:', e);
+        // console.error('Error en WebSocket:', e);
         setConnectionStatus('Error de conexión');
       };
       

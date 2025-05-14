@@ -1,35 +1,11 @@
 // src/styles/styles.js
 import { StyleSheet, Dimensions } from 'react-native';
+import { colors } from './colors';
 
 export const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#f5f5f7',
-  },
-  header: {
-    backgroundColor: '#0077B6',
-    padding: 16,
-    paddingTop: 20,
-  },
-  headerTitle: {
-    fontSize: 20,
-    fontWeight: 'bold',
-    color: 'white',
-    textAlign: 'center',
-  },
-  connectionStatus: {
-    fontSize: 14,
-    color: 'white',
-    textAlign: 'center',
-    marginTop: 4,
-  },
-  connected: {
-    color: '#4ADE80',
-    fontWeight: 'bold',
-  },
-  disconnected: {
-    color: '#F87171',
-    fontWeight: 'bold',
+    backgroundColor: '#fcfcfc',
   },
   scrollView: {
     flex: 1,
@@ -92,7 +68,7 @@ export const styles = StyleSheet.create({
   },
   valueHighlight: {
     fontWeight: 'bold',
-    color: '#0077B6',
+    color: colors.PRIMARY,
   },
   chart: {
     marginVertical: 8,
@@ -110,7 +86,7 @@ export const styles = StyleSheet.create({
     color: '#888',
   },
   reconnectButton: {
-    backgroundColor: '#0077B6',
+    backgroundColor: colors.PRIMARY,
     padding: 12,
     borderRadius: 8,
     alignItems: 'center',
