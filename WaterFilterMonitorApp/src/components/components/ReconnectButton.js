@@ -2,6 +2,7 @@
 import React from 'react';
 import { TouchableOpacity, Text } from 'react-native';
 import { styles } from '../styles/styles';
+import { MaterialCommunityIcons } from '@expo/vector-icons';
 
 /**
  * Botón para reconectar al WebSocket
@@ -12,7 +13,7 @@ const ReconnectButton = ({ onPress }) => {
     <TouchableOpacity 
       style={styles.reconnectButton} 
       onPress={onPress}>
-      <Text style={styles.reconnectButtonText}>Reconectar</Text>
+      <Text style={styles.reconnectButtonText}>Reconectar <MaterialCommunityIcons name="connection" size={16} /></Text>
     </TouchableOpacity>
   );
 };

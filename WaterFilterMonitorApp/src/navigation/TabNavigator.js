@@ -4,6 +4,7 @@ import DefaultScreen from "../screens/DefaultScreen";
 import { Ionicons } from "@expo/vector-icons";
 import MetricsScreen from "../screens/MetricsScreen";
 import { colors } from "../components/styles/colors";
+import AlertsScreen from "../screens/AlertsScreen";
 
 const Tab = createBottomTabNavigator();
 
@@ -19,7 +20,7 @@ const TabNavigator = () => {
           } else if (route.name === "Alerts") {
             iconName = focused ? "alert-circle" : "alert-circle-outline";
           } else if (route.name === "AI") {
-            iconName = focused ? "planet" : "planet-outline";
+            iconName = focused ? "sparkles" : "sparkles-outline";
           } else if (route.name === "Settings") {
             iconName = focused ? "settings" : "settings-outline";
           }
@@ -49,7 +50,7 @@ const TabNavigator = () => {
       />
       <Tab.Screen
         name="Alerts"
-        component={DefaultScreen}
+        component={AlertsScreen}
         options={{
           headerShown: false,
           tabBarLabel: "Alerts",

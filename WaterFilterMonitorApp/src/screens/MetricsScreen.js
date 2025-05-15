@@ -7,11 +7,16 @@ import ParameterSelector from "../components/components/ParameterSelector";
 import WaterQualityChart from "../components/components/WaterQualityChart";
 import ReconnectButton from "../components/components/ReconnectButton";
 import { styles } from "../components/styles/styles";
-import { SafeAreaView, ScrollView } from "react-native";
+import { SafeAreaView, ScrollView, View, Text, Switch } from "react-native";
+import { colors } from "../components/styles/colors";
+import { Divider } from "react-native-paper";
 
 const MetricsScreen = () => {
   // Estado para el parámetro actualmente seleccionado
   const [selectedParameter, setSelectedParameter] = useState('ph');
+  
+  // Estado para controlar la visualización combinada
+  const [showCombined, setShowCombined] = useState(true);
   
   // Usar el hook personalizado para WebSocket
   const {
@@ -51,6 +56,21 @@ const MetricsScreen = () => {
     loadCachedData();
   }, [selectedParameter, setEntradaData, setSalidaData]);
   
+  // Función auxiliar para inicializar datos del gráfico
+  const getInitialChartData = (source) => {
+    return {
+      labels: [],
+      datasets: [
+        { 
+          data: [], 
+          color: () => source === 'entrada' ? 'rgba(0, 119, 182, 0.8)' : 'rgba(3, 192, 60, 0.8)', 
+          strokeWidth: 2 
+        },
+      ],
+      legend: [source === 'entrada' ? 'Entrada' : 'Salida']
+    };
+  };
+
   return (
     <SafeAreaView style={styles.container}>
       <Header 
@@ -63,23 +83,52 @@ const MetricsScreen = () => {
           selectedParameter={selectedParameter}
           onParameterChange={(value) => setSelectedParameter(value)}
         />
-        
-        <WaterQualityChart
-          title={`${paramInfo.title} - Entrada`}
-          units={paramInfo.units}
-          data={entradaData}
-          showTime={true}
-        />
-        
-        <WaterQualityChart
-          title={`${paramInfo.title} - Salida`}
-          units={paramInfo.units}
-          data={salidaData}
-        />
+                <Divider/>
+
+        <View style={styles.visualizationControls}>
+          <View style={styles.viewModeToggle}>
+            <Text>Separado</Text>
+            <Switch
+              value={showCombined}
+              onValueChange={(value) => setShowCombined(value)}
+              trackColor={{ true: colors.PRIMARY }}
+              thumbColor={showCombined ? colors.SECONDARY : "#f4f3f4"}
+              style={styles.viewModeSwitch}
+            />
+            <Text>Combinado</Text>
+          </View>
+        </View>
+        {showCombined ? (
+          // Vista combinada
+          <WaterQualityChart
+            title={`${paramInfo.title}`}
+            units={paramInfo.units}
+            inputData={entradaData}
+            outputData={salidaData}
+            showTime={true}
+            combined={true}
+            onCombinedChange={() => setShowCombined(false)}
+          />
+        ) : (
+          // Vista separada (como estaba originalmente)
+          <>
+            <WaterQualityChart
+              title={`${paramInfo.title} - Entrada`}
+              units={paramInfo.units}
+              inputData={entradaData}
+              showTime={true}
+            />
+            
+            <WaterQualityChart
+              title={`${paramInfo.title} - Salida`}
+              units={paramInfo.units}
+              inputData={salidaData}
+            />
+          </>
+        )}
         
         <ReconnectButton onPress={connectWebSocket} />
       </ScrollView>
-
     </SafeAreaView>
   );
 };

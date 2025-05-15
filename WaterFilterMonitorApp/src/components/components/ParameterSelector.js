@@ -1,28 +1,39 @@
-// src/components/ParameterSelector.js
-import React from 'react';
-import { View, Text } from 'react-native';
-import { Picker } from '@react-native-picker/picker';
-import { styles } from '../styles/styles';
-import { PARAMETERS } from '../utils/parameterUtils';
+import React from "react";
+import { View, Text, TouchableOpacity } from "react-native";
+import Feather from "react-native-vector-icons/Feather";
+import { styles } from "../styles/styles";
+import { PARAMETERS } from "../utils/parameterUtils";
+import { Ionicons } from "@expo/vector-icons";
+import { renderIcon } from "../utils/iconUtils";
 
-/**
- * Componente selector de parámetros
- * @param {string} selectedParameter - Parámetro actualmente seleccionado
- * @param {function} onParameterChange - Función a llamar cuando cambia el parámetro
- */
 const ParameterSelector = ({ selectedParameter, onParameterChange }) => {
   return (
     <View style={styles.parameterSelector}>
       <Text style={styles.sectionTitle}>Parámetro:</Text>
-      <View style={styles.pickerContainer}>
-        <Picker
-          selectedValue={selectedParameter}
-          style={styles.picker}
-          onValueChange={onParameterChange}>
-          {PARAMETERS.map((param) => (
-            <Picker.Item key={param.value} label={param.label} value={param.value} />
-          ))}
-        </Picker>
+      <View style={styles.buttonGroup}>
+        {PARAMETERS.map((param) => {
+          const isSelected = selectedParameter === param.value;
+          return (
+            <TouchableOpacity
+              key={param.value}
+              style={[
+                styles.parameterButton,
+                isSelected && styles.parameterButtonSelected,
+              ]}
+              onPress={() => onParameterChange(param.value)}
+            >
+              {renderIcon(param.iconLib, param.iconName, isSelected)}
+              <Text
+                style={[
+                  styles.parameterButtonText,
+                  isSelected && styles.parameterButtonTextSelected,
+                ]}
+              >
+                {param.label}
+              </Text>
+            </TouchableOpacity>
+          );
+        })}
       </View>
     </View>
   );
