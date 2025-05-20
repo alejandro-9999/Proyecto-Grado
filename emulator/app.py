@@ -1,4 +1,3 @@
-# sensor_simulator.py
 import time
 import json
 import random
@@ -11,38 +10,42 @@ from datetime import datetime
 # Configuration
 MQTT_BROKER_HOST = os.getenv("MQTT_BROKER_HOST", "127.0.0.1")
 MQTT_BROKER_PORT = int(os.getenv("MQTT_BROKER_PORT", 1883))
-PUBLISH_INTERVAL = float(os.getenv("PUBLISH_INTERVAL", 2.5))  # Default to 1 second for more real-time feel
+PUBLISH_INTERVAL = float(os.getenv("PUBLISH_INTERVAL", 2.5))  # Default to 2.5 seconds
 
-# Initial values - starting with baseline values
+# Initial values - consolidated into a single structure
 current_values = {
-    "entrada": {
-        "ph": 7.2,
-        "conductividad": 450,
-        "turbidez": 2.5,
-        "color": 0.5
-    },
-    "salida": {
-        "ph": 7.3,
-        "conductividad": 200,
-        "turbidez": 1.0,
-        "color": 0.2
-    }
+    "in_ph": 7.2,
+    "in_conductividad": 450,
+    "in_turbidez": 2.5,
+    "in_color": 0.5,
+    "out_ph": 7.3,
+    "out_conductividad": 200,
+    "out_turbidez": 1.0,
+    "out_color": 0.2
 }
 
 # Variance ranges - how much each reading can change
 variance = {
-    "ph": 0.1,           # pH typically varies slightly
-    "conductividad": 20,  # Conductivity can fluctuate more
-    "turbidez": 0.3,      # Turbidity changes gradually
-    "color": 0.1         # Color changes slightly
+    "in_ph": 0.1,
+    "in_conductividad": 20,
+    "in_turbidez": 0.3,
+    "in_color": 0.1,
+    "out_ph": 0.1,
+    "out_conductividad": 20,
+    "out_turbidez": 0.3,
+    "out_color": 0.1
 }
 
 # Bounds - realistic limits for each parameter
 bounds = {
-    "ph": (6.0, 9.0),
-    "conductividad": (100, 800),
-    "turbidez": (0, 10),
-    "color": (0, 2)
+    "in_ph": (6.0, 9.0),
+    "in_conductividad": (100, 800),
+    "in_turbidez": (0, 10),
+    "in_color": (0, 2),
+    "out_ph": (6.0, 9.0),
+    "out_conductividad": (100, 800),
+    "out_turbidez": (0, 10),
+    "out_color": (0, 2)
 }
 
 # Connect to MQTT broker
@@ -59,36 +62,34 @@ def connect_mqtt():
         return False
 
 # Generate realistic sensor data with trends
-def generate_sensor_data(source):
+def generate_sensor_data():
     global current_values
     
-    # Get current values for this source
-    values = current_values[source]
-    
     # Update each parameter with realistic drift
-    for param in values:
+    for param in current_values:
         # Apply small random drift
         change = random.uniform(-variance[param], variance[param])
-        new_value = values[param] + change
+        new_value = current_values[param] + change
         
         # Keep values within realistic bounds
         min_val, max_val = bounds[param]
         new_value = max(min_val, min(new_value, max_val))
         
         # Update the current value
-        values[param] = new_value
+        current_values[param] = new_value
     
     # Create sensor data dict
     data = {
         "timestamp": datetime.now().isoformat(),
-        "ph": round(values["ph"], 2),
-        "conductividad": int(values["conductividad"]),
-        "turbidez": round(values["turbidez"], 2),
-        "color": round(values["color"], 2)
+        "in_ph": round(current_values["in_ph"], 2),
+        "in_conductividad": int(current_values["in_conductividad"]),
+        "in_turbidez": round(current_values["in_turbidez"], 2),
+        "in_color": round(current_values["in_color"], 2),
+        "out_ph": round(current_values["out_ph"], 2),
+        "out_conductividad": int(current_values["out_conductividad"]),
+        "out_turbidez": round(current_values["out_turbidez"], 2),
+        "out_color": round(current_values["out_color"], 2)
     }
-    
-    # Save the current values
-    current_values[source] = values
     
     return data
 
@@ -106,25 +107,21 @@ def run_simulator():
     if not connect_mqtt():
         print("Exiting due to MQTT connection failure")
         return
-
+    
     print(f"Sensor simulator running. Publishing data every {PUBLISH_INTERVAL} seconds...")
     print("Press Ctrl+C to stop")
     
     try:
         while True:
-            # Generate and publish entrada data
-            data_entrada = generate_sensor_data("entrada")
-            client.publish("sensores/entrada", json.dumps(data_entrada))
-            print(f"Published entrada data: pH={data_entrada['ph']}, Conductivity={data_entrada['conductividad']}")
+            # Generate and publish consolidated data
+            data = generate_sensor_data()
+            client.publish("sensores/data", json.dumps(data))
             
-            # Generate and publish salida data
-            data_salida = generate_sensor_data("salida")
-            client.publish("sensores/salida", json.dumps(data_salida))
-            print(f"Published salida data: pH={data_salida['ph']}, Conductivity={data_salida['conductividad']}")
+            print(f"Published data: pH in={data['in_ph']}, pH out={data['out_ph']}, " 
+                  f"Conductivity in={data['in_conductividad']}, Conductivity out={data['out_conductividad']}")
             
             # Wait for next interval
             time.sleep(PUBLISH_INTERVAL)
-            
     except Exception as e:
         print(f"Error in simulator: {e}")
         client.loop_stop()
