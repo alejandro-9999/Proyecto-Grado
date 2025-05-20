@@ -3,7 +3,7 @@ import tensorflow as tf
 import joblib
 import os
 
-def load_trained_model(path="app/lm/models"):
+def load_trained_model(path="backend/app/lm/models"):
     """
     Load the trained LSTM model with custom objects to handle the 'mse' loss function issue.
     

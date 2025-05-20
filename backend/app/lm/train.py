@@ -5,6 +5,8 @@ from tensorflow.keras.models import Sequential
 from tensorflow.keras.layers import LSTM, Dense
 import os
 import joblib
+import numpy as np
+import pandas as pd
 
 def simulate_data(n_samples=300):
     np.random.seed(0)
