@@ -4,7 +4,6 @@ import WaterQualityChart from "../components/components/WaterQualityChart";
 import ReconnectButton from "../components/components/ReconnectButton";
 import { styles } from "../components/styles/styles";
 
-
 import { SafeAreaView, ScrollView, View, Text, Switch } from "react-native";
 import { colors } from "../components/styles/colors";
 import { Divider } from "react-native-paper";
@@ -18,47 +17,22 @@ const MetricsScreen = () => {
   
   // Estado para controlar la visualización combinada
   const [showCombined, setShowCombined] = useState(true);
+
+  // Estado local para los datos de los gráficos
+  const [entradaData, setEntradaData] = useState(getInitialChartData('entrada'));
+  const [salidaData, setSalidaData] = useState(getInitialChartData('salida'));
   
   // Usar el hook personalizado para WebSocket
   const {
-    entradaData,
-    setEntradaData,
-    salidaData,
-    setSalidaData,
+    entradaData: wsEntradaData,
+    salidaData: wsSalidaData,
     connected,
     connectionStatus,
     connectWebSocket
   } = useWebSocket(selectedParameter);
   
-  // Obtener información del parámetro seleccionado
-  const paramInfo = getParameterInfo(selectedParameter);
-  
-  // Efecto para cargar datos desde caché cuando cambia el parámetro
-  useEffect(() => {
-    const loadCachedData = async () => {
-      const entradaLoaded = await loadDataFromCache('entrada', selectedParameter);
-      const salidaLoaded = await loadDataFromCache('salida', selectedParameter);
-      
-      // Si hay datos en caché, actualizarlos
-      if (entradaLoaded) {
-        setEntradaData(entradaLoaded);
-      } else {
-        // Si no hay datos en caché, inicializar con arrays vacíos
-        setEntradaData(getInitialChartData('entrada'));
-      }
-      
-      if (salidaLoaded) {
-        setSalidaData(salidaLoaded);
-      } else {
-        setSalidaData(getInitialChartData('salida'));
-      }
-    };
-    
-    loadCachedData();
-  }, [selectedParameter, setEntradaData, setSalidaData]);
-  
   // Función auxiliar para inicializar datos del gráfico
-  const getInitialChartData = (source) => {
+  function getInitialChartData(source) {
     return {
       labels: [],
       datasets: [
@@ -70,10 +44,39 @@ const MetricsScreen = () => {
       ],
       legend: [source === 'entrada' ? 'Entrada' : 'Salida']
     };
-  };
+  }
+
+  // Obtener información del parámetro seleccionado
+  const paramInfo = getParameterInfo(selectedParameter);
+  
+  // Efecto para resetear los datos cuando cambia el parámetro
+  useEffect(() => {
+    // Resetear los datos cuando cambia el parámetro seleccionado
+    setEntradaData(getInitialChartData('entrada'));
+    setSalidaData(getInitialChartData('salida'));
+    
+    // Volver a conectar WebSocket para obtener los datos del nuevo parámetro
+    connectWebSocket();
+  }, [selectedParameter]);
+  
+  // Efecto para actualizar los datos cuando llegan nuevos del websocket
+  useEffect(() => {
+    if (wsEntradaData && wsEntradaData.datasets[0].data.length > 0) {
+      setEntradaData(wsEntradaData);
+    }
+    
+    if (wsSalidaData && wsSalidaData.datasets[0].data.length > 0) {
+      setSalidaData(wsSalidaData);
+    }
+  }, [wsEntradaData, wsSalidaData]);
 
   // Verificar si el parámetro seleccionado es un parámetro único (solo salida)
   const isSingleParameter = ['eficiencia', 'filter_operating_hours'].includes(selectedParameter);
+
+  // Manejador para cambio de parámetro
+  const handleParameterChange = (value) => {
+    setSelectedParameter(value);
+  };
 
   return (
     <SafeAreaView style={styles.container}>
@@ -85,7 +88,7 @@ const MetricsScreen = () => {
       <ScrollView style={styles.scrollView}>
         <ParameterSelector
           selectedParameter={selectedParameter}
-          onParameterChange={(value) => setSelectedParameter(value)}
+          onParameterChange={handleParameterChange}
         />
         <Divider/>
 

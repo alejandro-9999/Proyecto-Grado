@@ -1,17 +1,25 @@
 from fastapi import WebSocket
 from typing import Dict, List, Any
-import asyncio
-import json
+import logging
+from bson import ObjectId
+
+logger = logging.getLogger(__name__)
 
 class ConnectionManager:
     def __init__(self):
         self.active_connections: List[WebSocket] = []
-        self.latest_data: Dict[str, Any] = None  # Will store the latest sensor data
+        self.latest_data: Dict[str, Any] = None
+
+    @staticmethod
+    def clean_data(data):
+        return {
+            k: str(v) if isinstance(v, ObjectId) else v
+            for k, v in data.items()
+        }
 
     async def connect(self, websocket: WebSocket):
         await websocket.accept()
         self.active_connections.append(websocket)
-        # Send the latest data immediately upon connection if available
         if self.latest_data:
             await websocket.send_json(self.latest_data)
 
@@ -20,16 +28,12 @@ class ConnectionManager:
             self.active_connections.remove(websocket)
 
     async def broadcast(self, data: dict):
-        # Store the latest data
-        self.latest_data = data
-        print("hola test")
-        
-        # Broadcast to all connected clients
-        for connection in self.active_connections.copy():  # Create a copy to avoid modification during iteration
+        self.latest_data = self.clean_data(data)
+        logger.info(self.latest_data)
+        for connection in self.active_connections.copy():
             try:
-                await connection.send_json(data)
+                await connection.send_json(self.latest_data)
             except Exception:
-                # Connection might be closed
                 self.disconnect(connection)
 
 # Singleton instance

@@ -8,6 +8,10 @@ import paho.mqtt.client as mqtt
 from app.core.config import MONGO_URL, DATABASE_NAME, COLLECTION_NAME
 from motor.motor_asyncio import AsyncIOMotorClient
 from app.websockets.manager import manager
+import logging
+
+
+logger = logging.getLogger(__name__)
 
 # MongoDB setup
 MONGO_CLIENT = AsyncIOMotorClient(MONGO_URL)
@@ -104,11 +108,16 @@ async def process_and_save(payload):
         "eficiencia": efficiency
     }
     
-    # Save to DB
-    await save_to_db(document)
     
-    # Broadcast via WebSocket
-    await manager.broadcast("data", document)
+    asyncio.run_coroutine_threadsafe(save_to_db(document), loop)
+    
+    logger.info("envial los datos")
+    
+
+    asyncio.run_coroutine_threadsafe(manager.broadcast(document), loop)
+
+
+    print("se hace el broadcast")
 
 async def save_to_db(data):
     try:
