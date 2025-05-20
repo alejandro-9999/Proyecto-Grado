@@ -65,11 +65,11 @@ const styles = StyleSheet.create({
  */
 export const PARAMETERS = [
   { label: "pH", value: "ph", iconLib: "SimpleLineIcons", iconName: "chemistry" },
-  { label: "Temperatura", value: "temperatura", iconLib: "MaterialCommunityIcons", iconName: "temperature-celsius" },
+  // { label: "Temperatura", value: "temperatura", iconLib: "MaterialCommunityIcons", iconName: "temperature-celsius" },
   { label: "Turbidez", value: "turbidez", iconLib: "MaterialCommunityIcons", iconName: "water-opacity" },
   { label: "Conductividad", value: "conductividad", iconLib: "SimpleLineIcons", iconName: "energy" },
-  { label: "Oxígeno Disuelto", value: "oxigeno_disuelto", iconLib: "MaterialCommunityIcons", iconName: "alpha-o-circle-outline" },
+  // { label: "Oxígeno Disuelto", value: "oxigeno_disuelto", iconLib: "MaterialCommunityIcons", iconName: "alpha-o-circle-outline" },
   { label: "Color", value: "color", iconLib: "MaterialCommunityIcons", iconName: "palette" },
-  { label: "Eficiencia", value: "eficiencia", iconLib: "MaterialCommunityIcons", iconName: "percent" },
-  { label: "Horas de Operación", value: "filter_operating_hours", iconLib: "MaterialCommunityIcons", iconName: "clock-outline" },
+  // { label: "Eficiencia", value: "eficiencia", iconLib: "MaterialCommunityIcons", iconName: "percent" },
+  // { label: "Horas de Operación", value: "filter_operating_hours", iconLib: "MaterialCommunityIcons", iconName: "clock-outline" },
 ];

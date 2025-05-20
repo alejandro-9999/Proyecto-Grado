@@ -5,6 +5,7 @@ import { Ionicons } from "@expo/vector-icons";
 import MetricsScreen from "../screens/MetricsScreen";
 import { colors } from "../components/styles/colors";
 import AlertsScreen from "../screens/AlertsScreen";
+import PredictionScreen from "../screens/PredictionScreen";
 
 const Tab = createBottomTabNavigator();
 
@@ -58,7 +59,7 @@ const TabNavigator = () => {
       />
       <Tab.Screen
         name="AI"
-        component={DefaultScreen}
+        component={PredictionScreen}
         options={{
           headerShown: false,
           tabBarLabel: "AI",
