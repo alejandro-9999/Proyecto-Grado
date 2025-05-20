@@ -16,15 +16,25 @@ def main():
     # ✅ Cargar datos reales desde MongoDB
     df_real = load_real_data()
 
-    print(df_real)
-    
     if not df_real.empty:
-        test_cases['Datos Reales Recientes'] = df_real
+        df_real = df_real.drop('_id', axis=1)
+        df_real = df_real.drop(columns=['timestamp'])  # Eliminar aquí está bien si no está en features_columns
 
-    eficiencia_real, horas_futuras = predict_future_efficiency(
-        model, df_real, scaler_X, scaler_y, features_columns, df
-    )
-    plot_efficiency_projection(df_real, eficiencia_real, horas_futuras, 'Grafica Realista')
+        
+        column_list = list(features_columns)
+        
+        column_list.append('eficiencia')
+        
+        # ✅ Reorganizar columnas al mismo orden que el entrenamiento
+        df_real = df_real[column_list]
+
+        
+        
+        eficiencia_real, horas_futuras = predict_future_efficiency(
+            model, df_real, scaler_X, scaler_y, features_columns, df
+        )
+
+        plot_efficiency_projection(df_real, eficiencia_real, horas_futuras, 'Grafica Realista')
 
 if __name__ == "__main__":
     main()

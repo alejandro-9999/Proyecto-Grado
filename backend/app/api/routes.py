@@ -91,3 +91,23 @@ async def get_stats():
         }
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Database error: {str(e)}")
+    
+@router.get("/api/efficiency/projection")
+def get_efficiency_projection():
+    df = simulate_data()
+    model, scaler_X, scaler_y, features_columns = train_lstm_model(df)
+    df_real = load_real_data()
+
+    if df_real.empty:
+        return JSONResponse(status_code=404, content={"message": "No real data found"})
+
+    df_real = df_real.drop(columns=['_id', 'timestamp'], errors='ignore')
+    column_list = list(features_columns) + ['eficiencia']
+    df_real = df_real[column_list]
+
+    eficiencia_real, horas_futuras = predict_future_efficiency(
+        model, df_real, scaler_X, scaler_y, features_columns, df
+    )
+
+    result = get_efficiency_projection_data(df_real, eficiencia_real, horas_futuras, "Predicción Eficiencia del Filtro")
+    return result

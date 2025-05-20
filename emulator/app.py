@@ -15,36 +15,36 @@ PUBLISH_INTERVAL = float(os.getenv("PUBLISH_INTERVAL", 2.5))  # Default to 2.5 s
 # Initial values - consolidated into a single structure
 current_values = {
     "in_ph": 7.2,
-    "in_conductividad": 450,
-    "in_turbidez": 2.5,
+    "in_conductivity": 450,
+    "in_turbidity": 2.5,
     "in_color": 0.5,
     "out_ph": 7.3,
-    "out_conductividad": 200,
-    "out_turbidez": 1.0,
+    "out_conductivity": 200,
+    "out_turbidity": 1.0,
     "out_color": 0.2
 }
 
 # Variance ranges - how much each reading can change
 variance = {
     "in_ph": 0.1,
-    "in_conductividad": 20,
-    "in_turbidez": 0.3,
+    "in_conductivity": 20,
+    "in_turbidity": 0.3,
     "in_color": 0.1,
     "out_ph": 0.1,
-    "out_conductividad": 20,
-    "out_turbidez": 0.3,
+    "out_conductivity": 20,
+    "out_turbidity": 0.3,
     "out_color": 0.1
 }
 
 # Bounds - realistic limits for each parameter
 bounds = {
     "in_ph": (6.0, 9.0),
-    "in_conductividad": (100, 800),
-    "in_turbidez": (0, 10),
+    "in_conductivity": (100, 800),
+    "in_turbidity": (0, 10),
     "in_color": (0, 2),
     "out_ph": (6.0, 9.0),
-    "out_conductividad": (100, 800),
-    "out_turbidez": (0, 10),
+    "out_conductivity": (100, 800),
+    "out_turbidity": (0, 10),
     "out_color": (0, 2)
 }
 
@@ -82,12 +82,12 @@ def generate_sensor_data():
     data = {
         "timestamp": datetime.now().isoformat(),
         "in_ph": round(current_values["in_ph"], 2),
-        "in_conductividad": int(current_values["in_conductividad"]),
-        "in_turbidez": round(current_values["in_turbidez"], 2),
+        "in_conductivity": int(current_values["in_conductivity"]),
+        "in_turbidity": round(current_values["in_turbidity"], 2),
         "in_color": round(current_values["in_color"], 2),
         "out_ph": round(current_values["out_ph"], 2),
-        "out_conductividad": int(current_values["out_conductividad"]),
-        "out_turbidez": round(current_values["out_turbidez"], 2),
+        "out_conductivity": int(current_values["out_conductivity"]),
+        "out_turbidity": round(current_values["out_turbidity"], 2),
         "out_color": round(current_values["out_color"], 2)
     }
     
@@ -118,7 +118,7 @@ def run_simulator():
             client.publish("sensores/data", json.dumps(data))
             
             print(f"Published data: pH in={data['in_ph']}, pH out={data['out_ph']}, " 
-                  f"Conductivity in={data['in_conductividad']}, Conductivity out={data['out_conductividad']}")
+                  f"Conductivity in={data['in_conductivity']}, Conductivity out={data['out_conductivity']}")
             
             # Wait for next interval
             time.sleep(PUBLISH_INTERVAL)

@@ -1,7 +1,11 @@
 import numpy as np
 
 def predict_future_efficiency(model, df_case, scaler_X, scaler_y, features_columns, full_df, seq_len=10, future_steps=500):
-    X_case = scaler_X.transform(df_case.drop(columns=['eficiencia']))
+    
+    df = df_case.drop(columns=['eficiencia'])
+    
+    
+    X_case = scaler_X.transform(df)
     last_seq = X_case[-seq_len:]
     current_seq = last_seq.copy()
 

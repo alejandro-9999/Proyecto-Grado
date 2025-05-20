@@ -2,6 +2,7 @@ import asyncio
 import json
 import os
 import time
+import numpy as np
 from datetime import datetime
 import paho.mqtt.client as mqtt
 from app.core.config import MONGO_URL, DATABASE_NAME, COLLECTION_NAME
@@ -40,6 +41,38 @@ def on_message(client, userdata, msg):
     except Exception as e:
         print(f"Error processing MQTT message: {e}")
 
+def calculate_efficiency(operating_hours, data):
+    """
+    Calculate filter efficiency based on operating hours and sensor data
+    The efficiency decreases with operating time and is affected by water quality
+    """
+    # Base efficiency starts at 100% and decreases over time
+    base_efficiency = 100 - (operating_hours * 0.1)
+    
+    # Add some randomness to simulate real-world variations
+    # Use the input-output differential as a factor 
+    # Higher differentials between input and output suggest better filter performance
+    try:
+        # Use water quality parameters to adjust efficiency
+        ph_factor = 1.0 - (abs(data.get('in_ph', 7.0) - data.get('out_ph', 7.0)) / 10)
+        turbidity_factor = 2.0 * abs(data.get('in_turbidity', 2.0) - data.get('out_turbidity', 1.0)) / 5.0
+        conductivity_factor = abs(data.get('in_conductivity', 400) - data.get('out_conductivity', 300)) / 500
+        
+        # Add random noise
+        random_factor = np.random.normal(0, 1.5)
+        
+        # Calculate final efficiency
+        efficiency = base_efficiency + random_factor + (turbidity_factor * 5) - (ph_factor * 2) + (conductivity_factor * 3)
+        
+        # Ensure efficiency stays within valid range (0-100%)
+        efficiency = max(0, min(100, efficiency))
+        
+        return round(efficiency, 2)
+    except Exception as e:
+        print(f"Error calculating efficiency: {e}")
+        # Return a fallback efficiency calculation if there's an error
+        return max(0, min(100, 100 - (operating_hours * 0.1) + np.random.normal(0, 1.5)))
+
 async def process_and_save(payload):
     global initial_timestamp
     
@@ -61,10 +94,14 @@ async def process_and_save(payload):
     delta = current_ts - initial_timestamp
     operating_hours = delta.total_seconds() / 3600
     
+    # Calculate efficiency based on operating hours and sensor data
+    efficiency = calculate_efficiency(operating_hours, payload)
+    
     # Prepare full document
     document = {
         **payload,
-        "filter_operating_hours": round(operating_hours, 2)
+        "filter_operating_hours": round(operating_hours, 2),
+        "eficiencia": efficiency
     }
     
     # Save to DB

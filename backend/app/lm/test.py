@@ -13,10 +13,10 @@ df = pd.DataFrame({
     'in_color': np.random.uniform(10, 30, n_samples),
     'in_turbidity': np.random.uniform(1, 5, n_samples),
     'in_conductivity': np.random.uniform(200, 500, n_samples),
-    'on_ph': np.random.uniform(6.5, 8.0, n_samples),
-    'on_color': np.random.uniform(5, 15, n_samples),
-    'on_turbidity': np.random.uniform(0.5, 3, n_samples),
-    'on_conductivity': np.random.uniform(150, 450, n_samples),
+    'out_ph': np.random.uniform(6.5, 8.0, n_samples),
+    'out_color': np.random.uniform(5, 15, n_samples),
+    'out_turbidity': np.random.uniform(0.5, 3, n_samples),
+    'out_conductivity': np.random.uniform(150, 450, n_samples),
     'filter_operating_hours': np.arange(n_samples),
 })
 df['eficiencia'] = 100 - (df['filter_operating_hours'] * 0.1) + np.random.normal(0, 1.5, n_samples)

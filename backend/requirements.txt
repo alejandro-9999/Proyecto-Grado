@@ -6,3 +6,5 @@ python-dotenv
 paho-mqtt
 websockets
 wsproto
+numpy
+tensorflow
