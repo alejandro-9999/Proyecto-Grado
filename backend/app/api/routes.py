@@ -1,11 +1,20 @@
 # app/api/routes.py
 from fastapi import APIRouter, HTTPException
+from starlette.responses import JSONResponse
+
 from app.models.sensor_data import SensorData
 from app.core.config import MONGO_URL, DATABASE_NAME, COLLECTION_NAME
 from motor.motor_asyncio import AsyncIOMotorClient
 from typing import List
 import json
 from bson import ObjectId
+import os
+from app.lm.data_loader import load_real_data
+from app.lm.train import train_lstm_model, simulate_data
+from app.lm.predict import predict_future_efficiency
+from app.lm.projection import get_efficiency_projection_data
+
+from app.lm.load_mode import load_trained_model
 
 router = APIRouter()
 
@@ -94,9 +103,19 @@ async def get_stats():
     
 @router.get("/api/efficiency/projection")
 def get_efficiency_projection():
-    df = simulate_data()
-    model, scaler_X, scaler_y, features_columns = train_lstm_model(df)
+
     df_real = load_real_data()
+    
+    df = simulate_data()
+    
+    if not os.path.exists("backend/app/lm/models/lstm_model.h5"):
+        print("🔁 Entrenando modelo LSTM...")
+        model, scaler_X, scaler_y, features_columns = train_lstm_model(df)
+    else:
+        print("✅ Cargando modelo ya entrenado...")
+        model, scaler_X, scaler_y, features_columns = load_trained_model()
+        
+        
 
     if df_real.empty:
         return JSONResponse(status_code=404, content={"message": "No real data found"})

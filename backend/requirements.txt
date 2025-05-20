@@ -8,3 +8,6 @@ websockets
 wsproto
 numpy
 tensorflow
+keras
+pandas
+scikit-learn

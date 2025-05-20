@@ -3,9 +3,27 @@ import joblib
 import pickle
 from tensorflow.keras.models import Sequential
 from tensorflow.keras.layers import LSTM, Dense
-from sklearn.preprocessing import MinMaxScaler
+import os
+import joblib
 
-def train_lstm_model(df, seq_len=10, save_path="app/lm/models"):
+def simulate_data(n_samples=300):
+    np.random.seed(0)
+    df = pd.DataFrame({
+        'in_ph': np.random.uniform(6.5, 8.5, n_samples),
+        'in_color': np.random.uniform(10, 30, n_samples),
+        'in_turbidity': np.random.uniform(1, 5, n_samples),
+        'in_conductivity': np.random.uniform(200, 500, n_samples),
+        'out_ph': np.random.uniform(6.5, 8.0, n_samples),
+        'out_color': np.random.uniform(5, 15, n_samples),
+        'out_turbidity': np.random.uniform(0.5, 3, n_samples),
+        'out_conductivity': np.random.uniform(150, 450, n_samples),
+        'filter_operating_hours': np.arange(n_samples),
+    })
+    df['eficiencia'] = 100 - (df['filter_operating_hours'] * 0.1) + np.random.normal(0, 1.5, n_samples)
+    df['eficiencia'] = df['eficiencia'].clip(0, 100)
+    return df
+
+def train_lstm_model(df, seq_len=10, save_path="backend/app/lm/models"):
     # Prepara los datos
     features = df.drop(columns=['eficiencia'])
     target = df[['eficiencia']]
