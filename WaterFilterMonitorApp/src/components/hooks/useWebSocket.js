@@ -55,20 +55,36 @@ const useWebSocket = (selectedParameter) => {
   }, [salidaData]);
   
   // Función para actualizar los datos del gráfico
-  const updateChartData = useCallback((source, newData) => {
+  const updateChartData = useCallback((newData) => {
     const timestamp = new Date();
     const timeStr = `${timestamp.getHours()}:${String(timestamp.getMinutes()).padStart(2, '0')}:${String(timestamp.getSeconds()).padStart(2, '0')}`;
     
-    // Obtener el valor del parámetro seleccionado
-    const value = parseFloat(newData[selectedParameterRef.current]);
+    // Mapa de parámetros antiguos a nuevos prefijos
+    const parameterMapping = {
+      'ph': { entrada: 'in_ph', salida: 'out_ph' },
+      'temperatura': { entrada: 'in_temperatura', salida: 'out_temperatura' },
+      'turbidez': { entrada: 'in_turbidity', salida: 'out_turbidity' },
+      'conductividad': { entrada: 'in_conductivity', salida: 'out_conductivity' },
+      'oxigeno_disuelto': { entrada: 'in_oxigeno_disuelto', salida: 'out_oxigeno_disuelto' },
+      'color': { entrada: 'in_color', salida: 'out_color' }
+    };
     
-    if (isNaN(value)) return;
+    // Obtener las claves para el parámetro seleccionado
+    const mapping = parameterMapping[selectedParameterRef.current] || {
+      entrada: `in_${selectedParameterRef.current}`,
+      salida: `out_${selectedParameterRef.current}`
+    };
     
-    if (source === 'entrada') {
+    // Extraer valores de entrada y salida
+    const entradaValue = parseFloat(newData[mapping.entrada]);
+    const salidaValue = parseFloat(newData[mapping.salida]);
+    
+    // Actualizar datos de entrada si el valor es válido
+    if (!isNaN(entradaValue)) {
       setEntradaData(prevData => {
         // Crear nuevas copias de arrays para evitar mutaciones
         const newLabels = [...prevData.labels, timeStr];
-        const newValues = [...prevData.datasets[0].data, value];
+        const newValues = [...prevData.datasets[0].data, entradaValue];
         
         // Mantener solo los últimos MAX_POINTS puntos de datos
         if (newLabels.length > MAX_POINTS) {
@@ -90,11 +106,14 @@ const useWebSocket = (selectedParameter) => {
         
         return updatedData;
       });
-    } else if (source === 'salida') {
+    }
+    
+    // Actualizar datos de salida si el valor es válido
+    if (!isNaN(salidaValue)) {
       setSalidaData(prevData => {
         // Crear nuevas copias de arrays para evitar mutaciones
         const newLabels = [...prevData.labels, timeStr];
-        const newValues = [...prevData.datasets[0].data, value];
+        const newValues = [...prevData.datasets[0].data, salidaValue];
         
         // Mantener solo los últimos MAX_POINTS puntos de datos
         if (newLabels.length > MAX_POINTS) {
@@ -168,9 +187,9 @@ const useWebSocket = (selectedParameter) => {
         try {
           const message = JSON.parse(e.data);
           
-          // Procesar los datos recibidos
-          if (message && message.source && message.data) {
-            updateChartData(message.source, message.data);
+          // Procesar los datos recibidos - ahora el mensaje viene en formato unificado
+          if (message && message.timestamp) {
+            updateChartData(message);
           }
         } catch (error) {
           console.error('Error al procesar mensaje:', error);

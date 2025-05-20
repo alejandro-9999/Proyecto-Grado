@@ -20,11 +20,36 @@ export const getParameterInfo = (param) => {
       return { title: "Conductividad", units: "μS/cm" };
     case "oxigeno_disuelto":
       return { title: "Oxígeno Disuelto", units: "mg/L" };
+    case "color":
+      return { title: "Color", units: "" };
+    case "eficiencia":
+      return { title: "Eficiencia", units: "%" };
+    case "filter_operating_hours":
+      return { title: "Horas de Operación del Filtro", units: "h" };
     default:
       return { title: param, units: "" };
   }
 };
 
+// Mapa para convertir del parámetro seleccionado a las claves del nuevo formato
+export const getParameterKeys = (param) => {
+  switch (param) {
+    case "ph":
+      return { entrada: "in_ph", salida: "out_ph" };
+    case "temperatura":
+      return { entrada: "in_temperatura", salida: "out_temperatura" };
+    case "turbidez":
+      return { entrada: "in_turbidity", salida: "out_turbidity" };
+    case "conductividad":
+      return { entrada: "in_conductivity", salida: "out_conductivity" };
+    case "oxigeno_disuelto":
+      return { entrada: "in_oxigeno_disuelto", salida: "out_oxigeno_disuelto" };
+    case "color":
+      return { entrada: "in_color", salida: "out_color" };
+    default:
+      return { entrada: `in_${param}`, salida: `out_${param}` };
+  }
+};
 
 const styles = StyleSheet.create({
   paramIcon: {
@@ -35,7 +60,6 @@ const styles = StyleSheet.create({
   },
 });
 
-
 /**
  * Lista de parámetros disponibles para selección
  */
@@ -45,6 +69,7 @@ export const PARAMETERS = [
   { label: "Turbidez", value: "turbidez", iconLib: "MaterialCommunityIcons", iconName: "water-opacity" },
   { label: "Conductividad", value: "conductividad", iconLib: "SimpleLineIcons", iconName: "energy" },
   { label: "Oxígeno Disuelto", value: "oxigeno_disuelto", iconLib: "MaterialCommunityIcons", iconName: "alpha-o-circle-outline" },
+  { label: "Color", value: "color", iconLib: "MaterialCommunityIcons", iconName: "palette" },
+  { label: "Eficiencia", value: "eficiencia", iconLib: "MaterialCommunityIcons", iconName: "percent" },
+  { label: "Horas de Operación", value: "filter_operating_hours", iconLib: "MaterialCommunityIcons", iconName: "clock-outline" },
 ];
-
-

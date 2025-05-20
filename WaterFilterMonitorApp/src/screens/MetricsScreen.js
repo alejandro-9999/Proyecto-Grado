@@ -1,15 +1,16 @@
 import { useEffect, useState } from "react";
-import useWebSocket from "../components/hooks/useWebSocket";
-import { getParameterInfo } from "../components/utils/parameterUtils";
-import { loadDataFromCache } from "../components/utils/storageUtils";
-import Header from "../components/components/Header";
 import ParameterSelector from "../components/components/ParameterSelector";
 import WaterQualityChart from "../components/components/WaterQualityChart";
 import ReconnectButton from "../components/components/ReconnectButton";
 import { styles } from "../components/styles/styles";
+
+
 import { SafeAreaView, ScrollView, View, Text, Switch } from "react-native";
 import { colors } from "../components/styles/colors";
 import { Divider } from "react-native-paper";
+import useWebSocket from "../components/hooks/useWebSocket";
+import { getParameterInfo } from "../components/utils/parameterUtils";
+import Header from "../components/components/Header";
 
 const MetricsScreen = () => {
   // Estado para el parámetro actualmente seleccionado
@@ -71,6 +72,9 @@ const MetricsScreen = () => {
     };
   };
 
+  // Verificar si el parámetro seleccionado es un parámetro único (solo salida)
+  const isSingleParameter = ['eficiencia', 'filter_operating_hours'].includes(selectedParameter);
+
   return (
     <SafeAreaView style={styles.container}>
       <Header 
@@ -83,23 +87,34 @@ const MetricsScreen = () => {
           selectedParameter={selectedParameter}
           onParameterChange={(value) => setSelectedParameter(value)}
         />
-                <Divider/>
+        <Divider/>
 
-        <View style={styles.visualizationControls}>
-          <View style={styles.viewModeToggle}>
-            <Text>Separado</Text>
-            <Switch
-              value={showCombined}
-              onValueChange={(value) => setShowCombined(value)}
-              trackColor={{ true: colors.PRIMARY }}
-              thumbColor={showCombined ? colors.SECONDARY : "#f4f3f4"}
-              style={styles.viewModeSwitch}
-            />
-            <Text>Combinado</Text>
+        {!isSingleParameter && (
+          <View style={styles.visualizationControls}>
+            <View style={styles.viewModeToggle}>
+              <Text>Separado</Text>
+              <Switch
+                value={showCombined}
+                onValueChange={(value) => setShowCombined(value)}
+                trackColor={{ true: colors.PRIMARY }}
+                thumbColor={showCombined ? colors.SECONDARY : "#f4f3f4"}
+                style={styles.viewModeSwitch}
+              />
+              <Text>Combinado</Text>
+            </View>
           </View>
-        </View>
-        {showCombined ? (
-          // Vista combinada
+        )}
+        
+        {isSingleParameter ? (
+          // Para parámetros que solo tienen un valor (eficiencia, horas de operación)
+          <WaterQualityChart
+            title={`${paramInfo.title}`}
+            units={paramInfo.units}
+            inputData={salidaData} // Solo usamos el dataset de "salida" para estos parámetros
+            showTime={true}
+          />
+        ) : showCombined ? (
+          // Vista combinada para parámetros con entrada/salida
           <WaterQualityChart
             title={`${paramInfo.title}`}
             units={paramInfo.units}
@@ -110,7 +125,7 @@ const MetricsScreen = () => {
             onCombinedChange={() => setShowCombined(false)}
           />
         ) : (
-          // Vista separada (como estaba originalmente)
+          // Vista separada para parámetros con entrada/salida
           <>
             <WaterQualityChart
               title={`${paramInfo.title} - Entrada`}
