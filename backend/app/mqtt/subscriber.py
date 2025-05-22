@@ -111,9 +111,6 @@ async def process_and_save(payload):
     
     asyncio.run_coroutine_threadsafe(save_to_db(document), loop)
     
-    logger.info("envial los datos")
-    
-
     asyncio.run_coroutine_threadsafe(manager.broadcast(document), loop)
 
 

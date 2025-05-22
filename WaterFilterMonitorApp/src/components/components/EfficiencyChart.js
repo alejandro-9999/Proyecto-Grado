@@ -16,6 +16,14 @@ const ResponsiveLineChart = ({ data, umbralCritico, horaCambio }) => {
         data: [],
         color: () => '#2196F3', // Blue line color
         strokeWidth: 2
+      },
+      // Dataset para la línea del umbral crítico
+      {
+        data: [],
+        color: () => '#FF5722', // Red line color for threshold
+        strokeWidth: 2,
+        strokeDashArray: [5, 5], // Línea punteada
+        withDots: false
       }
     ]
   };
@@ -27,34 +35,95 @@ const ResponsiveLineChart = ({ data, umbralCritico, horaCambio }) => {
   dataPoints.forEach(point => {
     chartData.labels.push(Math.round(point.hora).toString());
     chartData.datasets[0].data.push(point.eficiencia);
+    // Agregar el valor del umbral crítico para cada punto
+    chartData.datasets[1].data.push(umbralCritico);
   });
+  
+  // Encontrar el punto de falla (donde la eficiencia cae por debajo del umbral)
+  const puntoFalla = data.find(point => point.eficiencia <= umbralCritico);
+  const indicePuntoFalla = dataPoints.findIndex(point => point.eficiencia <= umbralCritico);
   
   return (
     <View style={styles.chartContainer}>
       {dataPoints.length > 0 ? (
-        <LineChart
-          data={chartData}
-          width={screenWidth}
-          height={256}
-          chartConfig={{
-            backgroundColor: '#f9f9f9',
-            backgroundGradientFrom: '#f9f9f9',
-            backgroundGradientTo: '#f9f9f9',
-            decimalPlaces: 1,
-            color: (opacity = 1) => `rgba(33, 150, 243, ${opacity})`,
-            labelColor: (opacity = 1) => `rgba(0, 0, 0, ${opacity})`,
-            style: {
-              borderRadius: 8
-            },
-            propsForDots: {
-              r: '4',
-              strokeWidth: '1',
-              stroke: '#2196F3'
-            }
-          }}
-          bezier
-          style={styles.chart}
-        />
+        <View>
+          <LineChart
+            data={chartData}
+            width={screenWidth}
+            height={256}
+            chartConfig={{
+              backgroundColor: '#f9f9f9',
+              backgroundGradientFrom: '#f9f9f9',
+              backgroundGradientTo: '#f9f9f9',
+              decimalPlaces: 1,
+              color: (opacity = 1) => `rgba(33, 150, 243, ${opacity})`,
+              labelColor: (opacity = 1) => `rgba(0, 0, 0, ${opacity})`,
+              style: {
+                borderRadius: 8
+              },
+              propsForDots: {
+                r: '4',
+                strokeWidth: '1',
+                stroke: '#2196F3'
+              },
+              // Configurar para que la escala empiece en 0
+              fromZero: true,
+              // Configurar el rango del eje Y
+              yAxisMin: 0,
+              yAxisMax: 100
+            }}
+            bezier
+            style={styles.chart}
+            // Personalizar los puntos para destacar el punto de falla
+            decorator={() => {
+              if (indicePuntoFalla >= 0 && puntoFalla) {
+                // Calcular la posición del punto de falla en el gráfico
+                const x = 50 + (indicePuntoFalla * (screenWidth - 100) / (dataPoints.length - 1));
+                const y = 40 + ((100 - puntoFalla.eficiencia) * 180 / 100);
+                
+                return (
+                  <View>
+                    {/* Punto de falla destacado */}
+                    <View 
+                      style={[
+                        styles.failurePoint, 
+                        { 
+                          position: 'absolute', 
+                          left: x - 8, 
+                          top: y - 8 
+                        }
+                      ]} 
+                    />
+                    {/* Flecha apuntando al punto de falla */}
+                    <View 
+                      style={[
+                        styles.failureArrow, 
+                        { 
+                          position: 'absolute', 
+                          left: x - 15, 
+                          top: y - 25 
+                        }
+                      ]} 
+                    >
+                      <Text style={styles.failureArrowText}>⚠️</Text>
+                    </View>
+                  </View>
+                );
+              }
+              return null;
+            }}
+          />
+          
+          {/* Indicador de punto de falla si existe */}
+          {puntoFalla && (
+            <View style={styles.failureIndicator}>
+              <Text style={styles.failureText}>
+                ⚠️ Punto de falla detectado en hora {Math.round(puntoFalla.hora)} 
+                con {puntoFalla.eficiencia.toFixed(1)}% de eficiencia
+              </Text>
+            </View>
+          )}
+        </View>
       ) : (
         <Text style={styles.chartPlaceholder}>No hay datos disponibles</Text>
       )}
@@ -65,7 +134,7 @@ const ResponsiveLineChart = ({ data, umbralCritico, horaCambio }) => {
           <Text style={styles.chartLineText}>Eficiencia</Text>
         </View>
         <View style={styles.chartLine}>
-          <View style={[styles.chartLineIndicator, { backgroundColor: 'red' }]} />
+          <View style={[styles.chartLineIndicator, { backgroundColor: '#FF5722' }]} />
           <Text style={styles.chartLineText}>Umbral Crítico ({umbralCritico}%)</Text>
         </View>
       </View>
@@ -220,7 +289,7 @@ const styles = StyleSheet.create({
   },
   chartWrapper: {
     marginBottom: 24,
-    height: 300,
+    height: 350, // Aumentado para acomodar el indicador de falla
   },
   chartContainer: {
     justifyContent: 'center',
@@ -269,6 +338,44 @@ const styles = StyleSheet.create({
     textAlign: 'center',
     marginTop: 8,
   },
+  // Nuevos estilos para el punto de falla
+  failurePoint: {
+    width: 16,
+    height: 16,
+    borderRadius: 8,
+    backgroundColor: '#FF5722',
+    borderWidth: 3,
+    borderColor: '#FFFFFF',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.3,
+    shadowRadius: 3,
+    elevation: 5,
+  },
+  failureArrow: {
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  failureArrowText: {
+    fontSize: 16,
+    textShadowColor: '#FFFFFF',
+    textShadowOffset: { width: 1, height: 1 },
+    textShadowRadius: 2,
+  },
+  failureIndicator: {
+    backgroundColor: '#FFEBEE',
+    padding: 8,
+    borderRadius: 6,
+    marginTop: 8,
+    borderLeftWidth: 4,
+    borderLeftColor: '#FF5722',
+  },
+  failureText: {
+    fontSize: 12,
+    color: '#D32F2F',
+    fontWeight: '500',
+    textAlign: 'center',
+  },
   divider: {
     marginBottom: 12,
     marginTop: 12
@@ -279,7 +386,6 @@ const styles = StyleSheet.create({
     borderRadius: 8,
     marginBottom: 16,
     marginTop: 26,
-
   },
   infoTitle: {
     fontSize: 18,

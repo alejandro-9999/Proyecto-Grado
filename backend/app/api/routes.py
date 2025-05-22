@@ -13,10 +13,12 @@ from app.lm.data_loader import load_real_data
 from app.lm.train import train_lstm_model, simulate_data
 from app.lm.predict import predict_future_efficiency
 from app.lm.projection import get_efficiency_projection_data
-
+import logging
 from app.lm.load_mode import load_trained_model
 
 router = APIRouter()
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger(__name__)
 
 # MongoDB client
 client = AsyncIOMotorClient(MONGO_URL)
@@ -101,19 +103,22 @@ async def get_stats():
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Database error: {str(e)}")
     
-@router.get("/api/efficiency/projection")
+@router.get("/efficiency/projection")
 def get_efficiency_projection():
 
     df_real = load_real_data()
     
     df = simulate_data()
     
-    if not os.path.exists("backend/app/lm/models/lstm_model.h5"):
+    print(os.path.dirname(__file__))
+    logger.info(os.path.dirname(__file__))
+    
+    if not os.path.exists("/backend/app/lm/models/lstm_model.h5"):
         print("🔁 Entrenando modelo LSTM...")
         model, scaler_X, scaler_y, features_columns = train_lstm_model(df)
     else:
         print("✅ Cargando modelo ya entrenado...")
-        model, scaler_X, scaler_y, features_columns = load_trained_model()
+        model, scaler_X, scaler_y, features_columns = load_trained_model(path="app/lm/models")
         
         
 

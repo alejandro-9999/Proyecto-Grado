@@ -29,7 +29,6 @@ class ConnectionManager:
 
     async def broadcast(self, data: dict):
         self.latest_data = self.clean_data(data)
-        logger.info(self.latest_data)
         for connection in self.active_connections.copy():
             try:
                 await connection.send_json(self.latest_data)
