@@ -65,14 +65,14 @@ const TabNavigator = () => {
           tabBarLabel: "AI",
         }}
       />
-      <Tab.Screen
+      {/* <Tab.Screen
         name="Settings"
         component={DefaultScreen}
         options={{
           headerShown: false,
           tabBarLabel: "Settings",
         }}
-      />
+      /> */}
     </Tab.Navigator>
   );
 };
