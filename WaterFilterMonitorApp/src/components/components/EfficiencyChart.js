@@ -6,7 +6,7 @@ import { PREDICTION_URL } from '../config/config';
 
 // Since we need to adapt recharts for React Native, we'll use react-native-chart-kit
 const ResponsiveLineChart = ({ data, umbralCritico, horaCambio }) => {
-  const screenWidth = Dimensions.get('window').width - 40; // Margin for padding
+  const screenWidth = Dimensions.get('window').width - 20; // Reducir margen para más ancho
   
   // Prepare data for the chart
   const chartData = {
@@ -17,113 +17,67 @@ const ResponsiveLineChart = ({ data, umbralCritico, horaCambio }) => {
         color: () => '#2196F3', // Blue line color
         strokeWidth: 2
       },
-      // Dataset para la línea del umbral crítico
+      // Agregar línea del umbral crítico
       {
         data: [],
         color: () => '#FF5722', // Red line color for threshold
         strokeWidth: 2,
-        strokeDashArray: [5, 5], // Línea punteada
         withDots: false
       }
     ]
   };
   
-  // Extract data points for the chart (we'll use a subset for better display)
-  const dataPoints = data.length > 10 ? data.filter((_, i) => i % Math.ceil(data.length / 10) === 0) : data;
+  // Extract data points for the chart (show more points to see better projection)
+  const dataPoints = data.length > 20 ? data.filter((_, i) => i % Math.ceil(data.length / 20) === 0) : data;
   
-  // Populate the chart data
-  dataPoints.forEach(point => {
-    chartData.labels.push(Math.round(point.hora).toString());
+  // Encontrar el valor máximo para configurar el rango del eje Y
+  const maxEfficiency = Math.max(...data.map(point => point.eficiencia));
+  const yAxisMax = Math.max(100, Math.ceil(maxEfficiency / 10) * 10); // Mínimo 100, redondeado hacia arriba
+  
+  // Populate the chart data with better label spacing
+  dataPoints.forEach((point, index) => {
+    // Show labels every few points to avoid crowding
+    const showLabel = index % Math.max(1, Math.floor(dataPoints.length / 8)) === 0 || index === dataPoints.length - 1;
+    chartData.labels.push(showLabel ? Math.round(point.hora).toString() : '');
     chartData.datasets[0].data.push(point.eficiencia);
-    // Agregar el valor del umbral crítico para cada punto
+    // Agregar el umbral crítico para cada punto
     chartData.datasets[1].data.push(umbralCritico);
   });
-  
-  // Encontrar el punto de falla (donde la eficiencia cae por debajo del umbral)
-  const puntoFalla = data.find(point => point.eficiencia <= umbralCritico);
-  const indicePuntoFalla = dataPoints.findIndex(point => point.eficiencia <= umbralCritico);
   
   return (
     <View style={styles.chartContainer}>
       {dataPoints.length > 0 ? (
-        <View>
-          <LineChart
-            data={chartData}
-            width={screenWidth}
-            height={256}
-            chartConfig={{
-              backgroundColor: '#f9f9f9',
-              backgroundGradientFrom: '#f9f9f9',
-              backgroundGradientTo: '#f9f9f9',
-              decimalPlaces: 1,
-              color: (opacity = 1) => `rgba(33, 150, 243, ${opacity})`,
-              labelColor: (opacity = 1) => `rgba(0, 0, 0, ${opacity})`,
-              style: {
-                borderRadius: 8
-              },
-              propsForDots: {
-                r: '4',
-                strokeWidth: '1',
-                stroke: '#2196F3'
-              },
-              // Configurar para que la escala empiece en 0
-              fromZero: true,
-              // Configurar el rango del eje Y
-              yAxisMin: 0,
-              yAxisMax: 100
-            }}
-            bezier
-            style={styles.chart}
-            // Personalizar los puntos para destacar el punto de falla
-            decorator={() => {
-              if (indicePuntoFalla >= 0 && puntoFalla) {
-                // Calcular la posición del punto de falla en el gráfico
-                const x = 50 + (indicePuntoFalla * (screenWidth - 100) / (dataPoints.length - 1));
-                const y = 40 + ((100 - puntoFalla.eficiencia) * 180 / 100);
-                
-                return (
-                  <View>
-                    {/* Punto de falla destacado */}
-                    <View 
-                      style={[
-                        styles.failurePoint, 
-                        { 
-                          position: 'absolute', 
-                          left: x - 8, 
-                          top: y - 8 
-                        }
-                      ]} 
-                    />
-                    {/* Flecha apuntando al punto de falla */}
-                    <View 
-                      style={[
-                        styles.failureArrow, 
-                        { 
-                          position: 'absolute', 
-                          left: x - 15, 
-                          top: y - 25 
-                        }
-                      ]} 
-                    >
-                      <Text style={styles.failureArrowText}>⚠️</Text>
-                    </View>
-                  </View>
-                );
-              }
-              return null;
-            }}
-          />
-          
-          {/* Indicador de punto de falla si existe */}
-          {puntoFalla && (
-            <View style={styles.failureIndicator}>
-              <Text style={styles.failureText}>
-                ⚠️ Punto de falla detectado en hora {Math.round(puntoFalla.hora)} 
-                con {puntoFalla.eficiencia.toFixed(1)}% de eficiencia
-              </Text>
-            </View>
-          )}
-        </View>
+        <LineChart
+          data={chartData}
+          width={screenWidth}
+          height={280}
+          chartConfig={{
+            backgroundColor: '#f9f9f9',
+            backgroundGradientFrom: '#f9f9f9',
+            backgroundGradientTo: '#f9f9f9',
+            decimalPlaces: 1,
+            color: (opacity = 1) => `rgba(33, 150, 243, ${opacity})`,
+            labelColor: (opacity = 1) => `rgba(0, 0, 0, ${opacity})`,
+            style: {
+              borderRadius: 8
+            },
+            propsForDots: {
+              r: '4',
+              strokeWidth: '1',
+              stroke: '#2196F3'
+            }
+          }}
+          // Configurar el rango del eje Y para que inicie en 0
+          fromZero={true}
+          segments={5} // Número de segmentos en el eje Y
+          yAxisSuffix="%"
+          bezier
+          style={styles.chart}
+          // Configurar el rango manualmente
+          formatYLabel={(yValue) => {
+            return Math.round(parseFloat(yValue)).toString() + '%';
+          }}
+        />
       ) : (
         <Text style={styles.chartPlaceholder}>No hay datos disponibles</Text>
       )}
@@ -181,9 +135,9 @@ const EfficiencyChart = () => {
         // Combinar datos históricos y proyección
         const combinedData = [...historicData, ...projectionData];
         
-        // Reducir la cantidad de puntos para mejor visualización
+        // Reducir la cantidad de puntos para mejor visualización pero mantener más para la proyección
         const sampledData = [];
-        const step = Math.max(1, Math.floor(combinedData.length / 50));
+        const step = Math.max(1, Math.floor(combinedData.length / 80)); // Aumentamos de 50 a 80 puntos
         
         for (let i = 0; i < combinedData.length; i += step) {
           sampledData.push(combinedData[i]);
@@ -289,7 +243,7 @@ const styles = StyleSheet.create({
   },
   chartWrapper: {
     marginBottom: 24,
-    height: 350, // Aumentado para acomodar el indicador de falla
+    height: 320, // Aumentar altura para mejor visualización
   },
   chartContainer: {
     justifyContent: 'center',
@@ -338,44 +292,6 @@ const styles = StyleSheet.create({
     textAlign: 'center',
     marginTop: 8,
   },
-  // Nuevos estilos para el punto de falla
-  failurePoint: {
-    width: 16,
-    height: 16,
-    borderRadius: 8,
-    backgroundColor: '#FF5722',
-    borderWidth: 3,
-    borderColor: '#FFFFFF',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.3,
-    shadowRadius: 3,
-    elevation: 5,
-  },
-  failureArrow: {
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  failureArrowText: {
-    fontSize: 16,
-    textShadowColor: '#FFFFFF',
-    textShadowOffset: { width: 1, height: 1 },
-    textShadowRadius: 2,
-  },
-  failureIndicator: {
-    backgroundColor: '#FFEBEE',
-    padding: 8,
-    borderRadius: 6,
-    marginTop: 8,
-    borderLeftWidth: 4,
-    borderLeftColor: '#FF5722',
-  },
-  failureText: {
-    fontSize: 12,
-    color: '#D32F2F',
-    fontWeight: '500',
-    textAlign: 'center',
-  },
   divider: {
     marginBottom: 12,
     marginTop: 12
@@ -386,6 +302,7 @@ const styles = StyleSheet.create({
     borderRadius: 8,
     marginBottom: 16,
     marginTop: 26,
+
   },
   infoTitle: {
     fontSize: 18,
