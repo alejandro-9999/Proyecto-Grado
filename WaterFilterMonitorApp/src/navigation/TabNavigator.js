@@ -6,6 +6,7 @@ import MetricsScreen from "../screens/MetricsScreen";
 import { colors } from "../components/styles/colors";
 import AlertsScreen from "../screens/AlertsScreen";
 import PredictionScreen from "../screens/PredictionScreen";
+import ConfigScreen from "../screens/ConfigScreen";
 
 const Tab = createBottomTabNavigator();
 
@@ -65,14 +66,14 @@ const TabNavigator = () => {
           tabBarLabel: "AI",
         }}
       />
-      {/* <Tab.Screen
+      <Tab.Screen
         name="Settings"
-        component={DefaultScreen}
+        component={ConfigScreen}
         options={{
           headerShown: false,
           tabBarLabel: "Settings",
         }}
-      /> */}
+      />
     </Tab.Navigator>
   );
 };
