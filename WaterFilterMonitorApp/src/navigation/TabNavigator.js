@@ -42,7 +42,7 @@ const TabNavigator = () => {
         },
       })}
     >
-      <Tab.Screen
+      {/* <Tab.Screen
         name="Metrics"
         component={MetricsScreen}
         options={{
@@ -65,7 +65,7 @@ const TabNavigator = () => {
           headerShown: false,
           tabBarLabel: "AI",
         }}
-      />
+      /> */}
       <Tab.Screen
         name="Settings"
         component={ConfigScreen}

@@ -48,8 +48,7 @@ const ConfigScreen = ({ route }) => {
     
     if (Platform.OS === "android") {
       const apiLevel = Platform.Version;
-
-      console.log("API Level de Android:", apiLevel);
+      
       if (apiLevel < 31) {
         const granted = await PermissionsAndroid.request(
           PermissionsAndroid.PERMISSIONS.ACCESS_FINE_LOCATION,
@@ -64,15 +63,11 @@ const ConfigScreen = ({ route }) => {
         );
         return granted === PermissionsAndroid.RESULTS.GRANTED;
       } else {
-        console.log("Solicitando permisos de Bluetooth para Android 12+");
         const granted = await PermissionsAndroid.requestMultiple([
           PermissionsAndroid.PERMISSIONS.BLUETOOTH_SCAN,
           PermissionsAndroid.PERMISSIONS.BLUETOOTH_CONNECT,
           PermissionsAndroid.PERMISSIONS.ACCESS_FINE_LOCATION,
         ]);
-
-        console.log("Permisos otorgados:", granted);
-
         return (
           granted["android.permission.BLUETOOTH_CONNECT"] ===
             PermissionsAndroid.RESULTS.GRANTED &&
