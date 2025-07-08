@@ -1,5 +1,5 @@
 // src/screens/ConfigScreen.js
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect } from "react";
 import {
   View,
   Text,
@@ -8,371 +8,462 @@ import {
   TouchableOpacity,
   Alert,
   ScrollView,
+  SafeAreaView,
   ActivityIndicator,
-  Switch
-} from 'react-native';
+  Switch,
+  Platform,
+  PermissionsAndroid,
+  FlatList, // Usaremos FlatList para un mejor rendimiento
+} from "react-native";
 import { colors } from "../components/styles/colors";
+// Importar la nueva librería
+import { RNBluetoothClassic } from "react-native-bluetooth-classic";
 
 const ConfigScreen = ({ route }) => {
-  const [wifiSSID, setWifiSSID] = useState('');
-  const [wifiPassword, setWifiPassword] = useState('');
-  const [isConnecting, setIsConnecting] = useState(false);
-  const [isConnected, setIsConnected] = useState(false);
-  const [connectionStatus, setConnectionStatus] = useState('Desconectado');
-  const [deviceName, setDeviceName] = useState('');
+  const [wifiSSID, setWifiSSID] = useState("");
+  const [wifiPassword, setWifiPassword] = useState("");
+  const [isProcessing, setIsProcessing] = useState(false); // Un solo estado para todas las operaciones BT
+  const [connectedDevice, setConnectedDevice] = useState(null); // Almacena el objeto de conexión
   const [availableDevices, setAvailableDevices] = useState([]);
-  const [isScanning, setIsScanning] = useState(false);
-  const [isDemoMode, setIsDemoMode] = useState(true); // Switch entre demo y real
-  const [esp32Status, setEsp32Status] = useState('offline');
+  const [isDemoMode, setIsDemoMode] = useState(false); // Iniciar en modo real por defecto
+  const [dataSubscription, setDataSubscription] = useState(null);
 
-  // Simulación del comportamiento del ESP32
-  const simulateESP32Response = (command, data) => {
-    return new Promise((resolve) => {
+  // Hook para limpiar la suscripción a datos al desmontar el componente
+  useEffect(() => {
+    return () => {
+      if (dataSubscription) {
+        dataSubscription.remove();
+      }
+      // Asegurarse de desconectar al salir de la pantalla
+      if (connectedDevice) {
+        connectedDevice.disconnect();
+      }
+    };
+  }, [dataSubscription, connectedDevice]);
+
+  // --- LÓGICA DE PERMISOS (Obligatorio para Android 12+) ---
+  const requestBluetoothPermissions = async () => {
+    
+    console.log("============== "+Platform.OS);
+    
+    if (Platform.OS === "android") {
+      const apiLevel = Platform.Version;
+
+      console.log("API Level de Android:", apiLevel);
+      if (apiLevel < 31) {
+        const granted = await PermissionsAndroid.request(
+          PermissionsAndroid.PERMISSIONS.ACCESS_FINE_LOCATION,
+          {
+            title: "Permiso de Ubicación",
+            message:
+              "La app necesita acceso a la ubicación para buscar dispositivos Bluetooth.",
+            buttonNeutral: "Pregúntame Después",
+            buttonNegative: "Cancelar",
+            buttonPositive: "OK",
+          }
+        );
+        return granted === PermissionsAndroid.RESULTS.GRANTED;
+      } else {
+        console.log("Solicitando permisos de Bluetooth para Android 12+");
+        const granted = await PermissionsAndroid.requestMultiple([
+          PermissionsAndroid.PERMISSIONS.BLUETOOTH_SCAN,
+          PermissionsAndroid.PERMISSIONS.BLUETOOTH_CONNECT,
+          PermissionsAndroid.PERMISSIONS.ACCESS_FINE_LOCATION,
+        ]);
+
+        console.log("Permisos otorgados:", granted);
+
+        return (
+          granted["android.permission.BLUETOOTH_CONNECT"] ===
+            PermissionsAndroid.RESULTS.GRANTED &&
+          granted["android.permission.BLUETOOTH_SCAN"] ===
+            PermissionsAndroid.RESULTS.GRANTED &&
+          granted["android.permission.ACCESS_FINE_LOCATION"] ===
+            PermissionsAndroid.RESULTS.GRANTED
+        );
+      }
+    }
+    return true;
+  };
+
+  // --- FUNCIONES BLUETOOTH CON LA NUEVA LIBRERÍA ---
+
+  const scanForDevices = async () => {
+    
+    console.log("Iniciando escaneo de dispositivos Bluetooth...");
+    console.log("Modo Demo:", isDemoMode);
+    if (isDemoMode) {
+      setIsProcessing(true);
       setTimeout(() => {
-        switch (command) {
-          case 'CONNECT_WIFI':
-            // Simula éxito/fallo de conexión WiFi
-            const success = Math.random() > 0.3; // 70% de éxito
-            resolve({
-              success,
-              message: success ? 'WiFi conectado exitosamente' : 'Error al conectar WiFi',
-              ip: success ? '192.168.1.100' : null
-            });
-            break;
-          case 'GET_STATUS':
-            resolve({
-              success: true,
-              status: 'online',
-              ip: '192.168.1.100',
-              signal: -45
-            });
-            break;
-          default:
-            resolve({ success: false, message: 'Comando no reconocido' });
-        }
-      }, 2000 + Math.random() * 1000); // Simula latencia variable
+        setAvailableDevices([
+          { address: "AA:BB:CC:DD:EE:FF", name: "ESP32-WiFiConfig-Demo" },
+        ]);
+        setIsProcessing(false);
+      }, 2000);
+      return;
+    }
+
+    console.log("Solicitando permisos de Bluetooth...");
+
+    const permissionsGranted = await requestBluetoothPermissions();
+
+    console.log("Permisos de Bluetooth:", permissionsGranted);
+    if (!permissionsGranted) {
+      Alert.alert(
+        "Permisos requeridos",
+        "No se pueden buscar dispositivos sin los permisos necesarios."
+      );
+      return;
+    }
+
+    setIsProcessing(true);
+    setAvailableDevices([]);
+    try {
+      const unpaired = await RNBluetoothClassic.startDiscovery();
+      setAvailableDevices(unpaired);
+      Alert.alert(
+        "Escaneo finalizado",
+        `${unpaired.length} dispositivos encontrados.`
+      );
+    } catch (error) {
+      Alert.alert("Error de Escaneo", error.message);
+    } finally {
+      setIsProcessing(false);
+    }
+  };
+
+  const connectToDevice = async (device) => {
+    if (isDemoMode) {
+      setIsProcessing(true);
+      setTimeout(() => {
+        setConnectedDevice({ name: device.name }); // Simula objeto de conexión
+        setIsProcessing(false);
+        Alert.alert("Éxito (Demo)", `Conectado a ${device.name}`);
+      }, 1500);
+      return;
+    }
+
+    setIsProcessing(true);
+    try {
+      const connection = await RNBluetoothClassic.connectToDevice(
+        device.address
+      );
+      setConnectedDevice(connection);
+      setAvailableDevices([]); // Limpiar la lista
+
+      // Suscribirse a los datos entrantes
+      const subscription = connection.onDataReceived((data) =>
+        handleDeviceResponse(data.data)
+      );
+      setDataSubscription(subscription);
+
+      Alert.alert("Éxito", `Conectado a ${device.name}`);
+    } catch (error) {
+      Alert.alert("Error de Conexión", error.message);
+    } finally {
+      setIsProcessing(false);
+    }
+  };
+
+  const disconnectDevice = async () => {
+    if (dataSubscription) {
+      dataSubscription.remove();
+      setDataSubscription(null);
+    }
+    if (connectedDevice) {
+      try {
+        await connectedDevice.disconnect();
+      } catch (error) {
+        console.error("Error al desconectar:", error.message);
+      } finally {
+        setConnectedDevice(null);
+      }
+    }
+  };
+
+  const sendCommandToESP32 = async (command, data = {}) => {
+    if (!connectedDevice && !isDemoMode) {
+      Alert.alert("Error", "No hay dispositivo conectado.");
+      return;
+    }
+
+    const payload = JSON.stringify({ command, data }) + "\n";
+
+    if (isDemoMode) {
+      // Simular la respuesta después de un delay
+      handleDeviceResponse(await simulateESP32Response(command, data));
+      return;
+    }
+
+    try {
+      await connectedDevice.write(payload);
+    } catch (error) {
+      Alert.alert("Error de Comunicación", error.message);
+      setIsProcessing(false);
+    }
+  };
+
+  const handleDeviceResponse = (responseData) => {
+    try {
+      // Si la respuesta no es un objeto (viene de la simulación), usarla directamente.
+      // Si es un string (viene del BT real), parsearla.
+      const response =
+        typeof responseData === "object"
+          ? responseData
+          : JSON.parse(responseData.trim());
+
+      if (response.success) {
+        Alert.alert(
+          "Éxito desde ESP32",
+          `${response.message}\n${response.ip ? `IP: ${response.ip}` : ""}`
+        );
+      } else {
+        Alert.alert("Error desde ESP32", response.message);
+      }
+    } catch (e) {
+      console.error(
+        "Error al procesar respuesta:",
+        e,
+        "Dato crudo:",
+        responseData
+      );
+      Alert.alert(
+        "Respuesta inválida",
+        "Se recibió una respuesta no válida del dispositivo."
+      );
+    } finally {
+      setIsProcessing(false); // Detener el indicador de carga
+    }
+  };
+
+  const sendWiFiCredentials = () => {
+    if (!wifiSSID || !wifiPassword) {
+      Alert.alert("Error", "Por favor ingresa SSID y contraseña");
+      return;
+    }
+    setIsProcessing(true);
+    sendCommandToESP32("CONNECT_WIFI", {
+      ssid: wifiSSID,
+      password: wifiPassword,
     });
   };
 
-  // Función para escanear dispositivos Bluetooth (demo)
-  const scanForDevices = () => {
-    if (isDemoMode) {
-      setIsScanning(true);
-      // Simula dispositivos encontrados
+  const checkESP32Status = () => {
+    setIsProcessing(true);
+    sendCommandToESP32("GET_STATUS");
+  };
+
+  const getStatusText = () => {
+    if (connectedDevice) return `Conectado a ${connectedDevice.name}`;
+    if (isProcessing) return "Procesando...";
+    return "Desconectado";
+  };
+
+  const getStatusColor = () => {
+    if (connectedDevice) return "#4CAF50";
+    if (isProcessing) return "#FF9800";
+    return "#9E9E9E";
+  };
+
+  // --- LÓGICA DE SIMULACIÓN (sin cambios) ---
+  const simulateESP32Response = (command, data) => {
+    return new Promise((resolve) => {
       setTimeout(() => {
-        setAvailableDevices([
-          { id: '1', name: 'ESP32-WiFiConfig', address: 'AA:BB:CC:DD:EE:FF' },
-          { id: '2', name: 'ESP32-IoT-Device', address: 'FF:EE:DD:CC:BB:AA' },
-          { id: '3', name: 'Arduino-BT', address: '11:22:33:44:55:66' }
-        ]);
-        setIsScanning(false);
-      }, 3000);
-    } else {
-      // Aquí iría la lógica real de Bluetooth
-      // Necesitarías react-native-bluetooth-serial o similar
-      Alert.alert('Bluetooth Real', 'Implementar con react-native-bluetooth-serial');
-    }
+        // ... (tu lógica de simulación)
+        resolve({ success: true, message: `Simulación de ${command} exitosa` });
+      }, 1500);
+    });
   };
 
-  // Conectar a dispositivo Bluetooth
-  const connectToDevice = (device) => {
-    if (isDemoMode) {
-      setIsConnecting(true);
-      setConnectionStatus('Conectando...');
-      
-      setTimeout(() => {
-        setIsConnected(true);
-        setConnectionStatus('Conectado');
-        setDeviceName(device.name);
-        setEsp32Status('online');
-        setIsConnecting(false);
-        Alert.alert('Éxito', `Conectado a ${device.name}`);
-      }, 2000);
-    } else {
-      // Lógica real de conexión Bluetooth
-      Alert.alert('Bluetooth Real', 'Implementar conexión real');
-    }
-  };
-
-  // Desconectar dispositivo
-  const disconnectDevice = () => {
-    setIsConnected(false);
-    setConnectionStatus('Desconectado');
-    setDeviceName('');
-    setEsp32Status('offline');
-    setAvailableDevices([]);
-  };
-
-  // Enviar credenciales WiFi al ESP32
-  const sendWiFiCredentials = async () => {
-    if (!wifiSSID || !wifiPassword) {
-      Alert.alert('Error', 'Por favor ingresa SSID y contraseña');
-      return;
-    }
-
-    if (!isConnected) {
-      Alert.alert('Error', 'No hay dispositivo conectado');
-      return;
-    }
-
-    setIsConnecting(true);
-    setConnectionStatus('Enviando credenciales...');
-
-    try {
-      let response;
-      
-      if (isDemoMode) {
-        response = await simulateESP32Response('CONNECT_WIFI', {
-          ssid: wifiSSID,
-          password: wifiPassword
-        });
-      } else {
-        // Aquí enviarías los datos reales vía Bluetooth
-        // const bluetoothData = JSON.stringify({ ssid: wifiSSID, password: wifiPassword });
-        // response = await BluetoothSerial.write(bluetoothData);
-        response = { success: false, message: 'Implementar Bluetooth real' };
-      }
-
-      if (response.success) {
-        Alert.alert(
-          'Éxito',
-          `WiFi configurado correctamente\n${response.ip ? `IP: ${response.ip}` : ''}`,
-          [
-            {
-              text: 'OK',
-              onPress: () => {
-                setConnectionStatus('WiFi Configurado');
-                setEsp32Status('wifi_connected');
-              }
-            }
-          ]
-        );
-      } else {
-        Alert.alert('Error', response.message);
-        setConnectionStatus('Error en configuración');
-      }
-    } catch (error) {
-      Alert.alert('Error', 'Error al enviar credenciales: ' + error.message);
-      setConnectionStatus('Error de comunicación');
-    } finally {
-      setIsConnecting(false);
-    }
-  };
-
-  // Obtener estado del ESP32
-  const checkESP32Status = async () => {
-    if (!isConnected) {
-      Alert.alert('Error', 'No hay dispositivo conectado');
-      return;
-    }
-
-    try {
-      let response;
-      
-      if (isDemoMode) {
-        response = await simulateESP32Response('GET_STATUS');
-      } else {
-        // Lógica real para obtener estado
-        response = { success: false, message: 'Implementar Bluetooth real' };
-      }
-
-      if (response.success) {
-        Alert.alert(
-          'Estado del ESP32',
-          `Estado: ${response.status}\n${response.ip ? `IP: ${response.ip}` : ''}\n${response.signal ? `Señal: ${response.signal} dBm` : ''}`
-        );
-      }
-    } catch (error) {
-      Alert.alert('Error', 'Error al obtener estado: ' + error.message);
-    }
-  };
-
-  return (
-    <ScrollView style={styles.container}>
+  const renderHeader = () => (
+    <View>
       <View style={styles.header}>
-        <Text style={styles.title}>
-          {route.name === 'MetricsScreen' ? 'Configuración de Métricas' : 'Configuración WiFi ESP32'}
-        </Text>
-        
-        {/* Switch para modo demo/real */}
+        <Text style={styles.title}>Configuración WiFi ESP32</Text>
         <View style={styles.modeSwitch}>
           <Text style={styles.label}>Modo Demo</Text>
           <Switch
             value={isDemoMode}
             onValueChange={setIsDemoMode}
-            thumbColor={isDemoMode ? colors.PRIMARY : '#f4f3f4'}
-            trackColor={{ false: '#767577', true: '#81b0ff' }}
+            thumbColor={isDemoMode ? colors.PRIMARY : "#f4f3f4"}
+            trackColor={{ false: "#767577", true: "#81b0ff" }}
           />
         </View>
       </View>
 
-      {/* Estado de conexión */}
       <View style={styles.statusContainer}>
-        <View style={[styles.statusIndicator, { backgroundColor: getStatusColor() }]} />
-        <Text style={styles.statusText}>{connectionStatus}</Text>
-        {deviceName && <Text style={styles.deviceText}>Dispositivo: {deviceName}</Text>}
+        <View
+          style={[
+            styles.statusIndicator,
+            { backgroundColor: getStatusColor() },
+          ]}
+        />
+        <Text style={styles.statusText}>{getStatusText()}</Text>
       </View>
 
-      {/* Sección de Bluetooth */}
       <View style={styles.section}>
         <Text style={styles.sectionTitle}>Conexión Bluetooth</Text>
-        
-        {!isConnected ? (
-          <>
-            <TouchableOpacity
-              style={[styles.button, styles.scanButton]}
-              onPress={scanForDevices}
-              disabled={isScanning}
-            >
-              {isScanning ? (
-                <ActivityIndicator color="#FFF" />
-              ) : (
-                <Text style={styles.buttonText}>Buscar Dispositivos</Text>
-              )}
-            </TouchableOpacity>
-
-            {availableDevices.length > 0 && (
-              <View style={styles.deviceList}>
-                <Text style={styles.label}>Dispositivos encontrados:</Text>
-                {availableDevices.map((device) => (
-                  <TouchableOpacity
-                    key={device.id}
-                    style={styles.deviceItem}
-                    onPress={() => connectToDevice(device)}
-                    disabled={isConnecting}
-                  >
-                    <Text style={styles.deviceName}>{device.name}</Text>
-                    <Text style={styles.deviceAddress}>{device.address}</Text>
-                  </TouchableOpacity>
-                ))}
-              </View>
-            )}
-          </>
-        ) : (
+        {!connectedDevice && (
           <TouchableOpacity
-            style={[styles.button, styles.disconnectButton]}
-            onPress={disconnectDevice}
+            style={[styles.button, styles.scanButton]}
+            onPress={scanForDevices}
+            disabled={isProcessing}
           >
-            <Text style={styles.buttonText}>Desconectar</Text>
+            <Text style={styles.buttonText}>
+              {isProcessing ? "Escaneando..." : "Buscar Dispositivos"}
+            </Text>
           </TouchableOpacity>
         )}
       </View>
+    </View>
+  );
 
-      {/* Sección de configuración WiFi */}
-      {isConnected && (
-        <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Configuración WiFi</Text>
-          
-          <View style={styles.inputContainer}>
-            <Text style={styles.label}>Nombre de Red (SSID)</Text>
-            <TextInput
-              style={styles.input}
-              value={wifiSSID}
-              onChangeText={setWifiSSID}
-              placeholder="Ingresa el nombre de la red WiFi"
-              autoCapitalize="none"
-            />
+  const renderFooter = () => (
+    <View>
+      {connectedDevice && (
+        <>
+          <View style={styles.section}>
+            <TouchableOpacity
+              style={[styles.button, styles.disconnectButton]}
+              onPress={disconnectDevice}
+            >
+              <Text style={styles.buttonText}>Desconectar</Text>
+            </TouchableOpacity>
           </View>
-
-          <View style={styles.inputContainer}>
-            <Text style={styles.label}>Contraseña</Text>
-            <TextInput
-              style={styles.input}
-              value={wifiPassword}
-              onChangeText={setWifiPassword}
-              placeholder="Ingresa la contraseña"
-              secureTextEntry
-              autoCapitalize="none"
-            />
+          <View style={styles.section}>
+            <Text style={styles.sectionTitle}>Configuración WiFi</Text>
+            <View style={styles.inputContainer}>
+              <Text style={styles.label}>Nombre de Red (SSID)</Text>
+              <TextInput
+                style={styles.input}
+                value={wifiSSID}
+                onChangeText={setWifiSSID}
+                placeholder="Ingresa el nombre de la red WiFi"
+                autoCapitalize="none"
+              />
+            </View>
+            <View style={styles.inputContainer}>
+              <Text style={styles.label}>Contraseña</Text>
+              <TextInput
+                style={styles.input}
+                value={wifiPassword}
+                onChangeText={setWifiPassword}
+                placeholder="Ingresa la contraseña"
+                secureTextEntry
+                autoCapitalize="none"
+              />
+            </View>
+            <TouchableOpacity
+              style={[styles.button, styles.sendButton]}
+              onPress={sendWiFiCredentials}
+              disabled={isProcessing}
+            >
+              <Text style={styles.buttonText}>
+                {isProcessing ? "Enviando..." : "Configurar WiFi"}
+              </Text>
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={[styles.button, styles.statusButton]}
+              onPress={checkESP32Status}
+              disabled={isProcessing}
+            >
+              <Text style={styles.buttonText}>Verificar Estado</Text>
+            </TouchableOpacity>
           </View>
-
-          <TouchableOpacity
-            style={[styles.button, styles.sendButton]}
-            onPress={sendWiFiCredentials}
-            disabled={isConnecting}
-          >
-            {isConnecting ? (
-              <ActivityIndicator color="#FFF" />
-            ) : (
-              <Text style={styles.buttonText}>Configurar WiFi</Text>
-            )}
-          </TouchableOpacity>
-
-          <TouchableOpacity
-            style={[styles.button, styles.statusButton]}
-            onPress={checkESP32Status}
-          >
-            <Text style={styles.buttonText}>Verificar Estado</Text>
-          </TouchableOpacity>
-        </View>
+        </>
       )}
 
-      {/* Información adicional */}
       <View style={styles.infoContainer}>
         <Text style={styles.infoTitle}>Información</Text>
         <Text style={styles.infoText}>
           • En modo demo, se simula la comunicación con ESP32
         </Text>
         <Text style={styles.infoText}>
-          • Para uso real, instala: react-native-bluetooth-serial
+          • Para uso real, se usa: react-native-bluetooth-classic
         </Text>
         <Text style={styles.infoText}>
           • El ESP32 debe tener firmware compatible con este protocolo
         </Text>
       </View>
-    </ScrollView>
+    </View>
   );
 
-  function getStatusColor() {
-    switch (connectionStatus) {
-      case 'Conectado':
-      case 'WiFi Configurado':
-        return '#4CAF50';
-      case 'Conectando...':
-      case 'Enviando credenciales...':
-        return '#FF9800';
-      case 'Error en configuración':
-      case 'Error de comunicación':
-        return '#F44336';
-      default:
-        return '#9E9E9E';
-    }
-  }
+  const renderDeviceItem = ({ item }) => (
+    <TouchableOpacity
+      style={styles.deviceItem}
+      onPress={() => connectToDevice(item)}
+      disabled={isProcessing}
+    >
+      <Text style={styles.deviceName}>
+        {item.name || "Dispositivo sin nombre"}
+      </Text>
+      <Text style={styles.deviceAddress}>{item.address}</Text>
+    </TouchableOpacity>
+  );
+
+  return (
+    <SafeAreaView style={styles.container}>
+      <FlatList
+        data={connectedDevice ? [] : availableDevices} // Solo muestra la lista si no estás conectado
+        renderItem={renderDeviceItem}
+        keyExtractor={(item) => item.address}
+        ListHeaderComponent={renderHeader}
+        ListFooterComponent={renderFooter}
+        ListEmptyComponent={() => {
+          // Muestra el indicador de carga solo si se está escaneando y no hay dispositivos
+          if (isProcessing && !connectedDevice) {
+            return (
+              <ActivityIndicator
+                size="large"
+                color={colors.PRIMARY}
+                style={{ marginVertical: 20 }}
+              />
+            );
+          }
+          return null;
+        }}
+        contentContainerStyle={styles.listContentContainer}
+      />
+    </SafeAreaView>
+  );
 };
 
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#f5f5f5',
+    backgroundColor: "#f5f5f5",
+  },
+  listContentContainer: {
+    paddingBottom: 20, // Asegura que haya espacio al final
   },
   header: {
     backgroundColor: colors.PRIMARY,
-    padding: 20,
+    paddingHorizontal: 20,
     paddingTop: 40,
+    paddingBottom: 20,
   },
   title: {
     fontSize: 20,
-    fontWeight: 'bold',
-    color: '#FFF',
+    fontWeight: "bold",
+    color: "#FFF",
     marginBottom: 10,
   },
   modeSwitch: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    backgroundColor: 'rgba(255,255,255,0.1)',
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    backgroundColor: "rgba(255,255,255,0.1)",
     padding: 10,
     borderRadius: 8,
   },
   statusContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: '#FFF',
+    flexDirection: "row",
+    alignItems: "center",
+    backgroundColor: "#FFF",
     margin: 15,
     padding: 15,
     borderRadius: 8,
     elevation: 2,
-    shadowColor: '#000',
+    shadowColor: "#000",
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.1,
     shadowRadius: 4,
@@ -385,94 +476,89 @@ const styles = StyleSheet.create({
   },
   statusText: {
     fontSize: 16,
-    fontWeight: 'bold',
+    fontWeight: "bold",
     flex: 1,
   },
-  deviceText: {
-    fontSize: 12,
-    color: '#666',
-    marginLeft: 10,
-  },
   section: {
-    backgroundColor: '#FFF',
-    margin: 15,
+    backgroundColor: "#FFF",
+    marginHorizontal: 15,
+    marginBottom: 0, // El espacio ahora es manejado por el contenedor
+    marginTop: 15,
     padding: 20,
     borderRadius: 8,
     elevation: 2,
-    shadowColor: '#000',
+    shadowColor: "#000",
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.1,
     shadowRadius: 4,
   },
   sectionTitle: {
     fontSize: 18,
-    fontWeight: 'bold',
+    fontWeight: "bold",
     marginBottom: 15,
-    color: '#333',
+    color: "#333",
   },
   inputContainer: {
     marginBottom: 15,
   },
   label: {
     fontSize: 14,
-    fontWeight: '600',
+    fontWeight: "600",
     marginBottom: 5,
-    color: '#333',
+    color: "#333",
   },
   input: {
     borderWidth: 1,
-    borderColor: '#DDD',
+    borderColor: "#DDD",
     borderRadius: 8,
     padding: 12,
     fontSize: 16,
-    backgroundColor: '#FAFAFA',
+    backgroundColor: "#FAFAFA",
   },
   button: {
     padding: 15,
     borderRadius: 8,
-    alignItems: 'center',
+    alignItems: "center",
     marginVertical: 5,
   },
   scanButton: {
-    backgroundColor: '#2196F3',
+    backgroundColor: "#2196F3",
   },
   sendButton: {
-    backgroundColor: '#4CAF50',
+    backgroundColor: "#4CAF50",
   },
   disconnectButton: {
-    backgroundColor: '#F44336',
+    backgroundColor: "#F44336",
   },
   statusButton: {
-    backgroundColor: '#FF9800',
+    backgroundColor: "#FF9800",
   },
   buttonText: {
-    color: '#FFF',
+    color: "#FFF",
     fontSize: 16,
-    fontWeight: 'bold',
-  },
-  deviceList: {
-    marginTop: 15,
+    fontWeight: "bold",
   },
   deviceItem: {
-    backgroundColor: '#F5F5F5',
+    backgroundColor: "#FFF",
     padding: 12,
+    marginHorizontal: 15,
     borderRadius: 8,
     marginVertical: 5,
-    borderLeftWidth: 4,
-    borderLeftColor: '#2196F3',
+    borderWidth: 1,
+    borderColor: "#e0e0e0",
   },
   deviceName: {
     fontSize: 16,
-    fontWeight: 'bold',
-    color: '#333',
+    fontWeight: "bold",
+    color: "#333",
   },
   deviceAddress: {
     fontSize: 12,
-    color: '#666',
+    color: "#666",
     marginTop: 2,
   },
   infoContainer: {
-    backgroundColor: '#FFF',
+    backgroundColor: "#FFF",
     margin: 15,
     padding: 20,
     borderRadius: 8,
@@ -480,13 +566,13 @@ const styles = StyleSheet.create({
   },
   infoTitle: {
     fontSize: 16,
-    fontWeight: 'bold',
+    fontWeight: "bold",
     marginBottom: 10,
-    color: '#333',
+    color: "#333",
   },
   infoText: {
     fontSize: 14,
-    color: '#666',
+    color: "#666",
     marginBottom: 5,
     lineHeight: 20,
   },

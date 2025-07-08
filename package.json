@@ -1,0 +1,6 @@
+{
+  "dependencies": {
+    "react-native-bluetooth-classic": "^1.73.0-rc.13",
+    "react-native-bluetooth-serial": "^1.0.0-rc1"
+  }
+}
